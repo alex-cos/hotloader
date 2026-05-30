@@ -1,6 +1,7 @@
 package hotloader
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -86,6 +87,9 @@ func (impl *Impl) SetErrorFunc(f func(e error)) {
 // ----------------------------------------------------------------------------
 
 func (impl *Impl) load() (Loader, error) {
+	if impl.config == nil {
+		return nil, errors.New("config is nil")
+	}
 	val := reflect.ValueOf(impl.config)
 	if val.Kind() == reflect.Pointer {
 		val = reflect.Indirect(val)
