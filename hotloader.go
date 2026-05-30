@@ -53,97 +53,97 @@ func New(filename string, loader Loader, signals ...os.Signal) HotLoader {
 // Exported functions
 // ----------------------------------------------------------------------------
 
-func (thiz *Impl) Load() error {
-	temp, err := thiz.load()
+func (impl *Impl) Load() error {
+	temp, err := impl.load()
 	if err == nil {
-		thiz.mu.Lock()
-		thiz.config = temp
-		thiz.mu.Unlock()
+		impl.mu.Lock()
+		impl.config = temp
+		impl.mu.Unlock()
 	}
 	return err
 }
 
-func (thiz *Impl) Get() Loader {
-	thiz.mu.RLock()
-	defer thiz.mu.RUnlock()
-	return thiz.getConfig()
+func (impl *Impl) Get() Loader {
+	impl.mu.RLock()
+	defer impl.mu.RUnlock()
+	return impl.getConfig()
 }
 
-func (thiz *Impl) SetBeforeFunc(f func(l Loader)) {
-	thiz.beforeFunc = f
+func (impl *Impl) SetBeforeFunc(f func(l Loader)) {
+	impl.beforeFunc = f
 }
 
-func (thiz *Impl) SetAfterFunc(f func(l Loader)) {
-	thiz.afterFunc = f
+func (impl *Impl) SetAfterFunc(f func(l Loader)) {
+	impl.afterFunc = f
 }
 
-func (thiz *Impl) SetErrorFunc(f func(e error)) {
-	thiz.errorFunc = f
+func (impl *Impl) SetErrorFunc(f func(e error)) {
+	impl.errorFunc = f
 }
 
 // ----------------------------------------------------------------------------
 // Unexported functions
 // ----------------------------------------------------------------------------
 
-func (thiz *Impl) load() (Loader, error) {
-	val := reflect.ValueOf(thiz.config)
+func (impl *Impl) load() (Loader, error) {
+	val := reflect.ValueOf(impl.config)
 	if val.Kind() == reflect.Pointer {
 		val = reflect.Indirect(val)
 	}
 	newLoader := reflect.New(val.Type()).Interface().(Loader) //nolint:forcetypeassert
 	newLoader.InitDefault()
-	err := newLoader.Load(thiz.filename)
+	err := newLoader.Load(impl.filename)
 	if err != nil {
-		return newLoader, fmt.Errorf("failed to load file '%s': %w", thiz.filename, err)
+		return newLoader, fmt.Errorf("failed to load file '%s': %w", impl.filename, err)
 	}
 	return newLoader, nil
 }
 
-func (thiz *Impl) getConfig() Loader {
-	return thiz.config
+func (impl *Impl) getConfig() Loader {
+	return impl.config
 }
 
-func (thiz *Impl) start(signals ...os.Signal) {
+func (impl *Impl) start(signals ...os.Signal) {
 	if len(signals) == 0 {
 		return
 	}
 	go func() {
-		signal.Notify(thiz.ch, signals...)
+		signal.Notify(impl.ch, signals...)
 		defer func() {
-			signal.Stop(thiz.ch)
+			signal.Stop(impl.ch)
 			signal.Reset(signals...)
-			close(thiz.done)
+			close(impl.done)
 		}()
 		for {
 			select {
-			case <-thiz.ch:
-				if thiz.beforeFunc != nil {
-					thiz.beforeFunc(thiz.config)
+			case <-impl.ch:
+				if impl.beforeFunc != nil {
+					impl.beforeFunc(impl.config)
 				}
-				err := thiz.Load()
+				err := impl.Load()
 				if err != nil {
-					if thiz.errorFunc != nil {
-						thiz.errorFunc(err)
+					if impl.errorFunc != nil {
+						impl.errorFunc(err)
 					}
 				} else {
-					if thiz.afterFunc != nil {
-						thiz.afterFunc(thiz.config)
+					if impl.afterFunc != nil {
+						impl.afterFunc(impl.config)
 					}
 				}
-			case <-thiz.end:
+			case <-impl.end:
 				return
 			}
 		}
 	}()
 }
 
-func (thiz *Impl) stop() {
-	if thiz.end == nil {
+func (impl *Impl) stop() {
+	if impl.end == nil {
 		return
 	}
 	select {
-	case thiz.end <- true:
-		<-thiz.done
+	case impl.end <- true:
+		<-impl.done
 	case <-time.After(time.Second):
 		return
 	}
