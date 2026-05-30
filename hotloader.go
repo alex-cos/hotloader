@@ -87,7 +87,7 @@ func (thiz *Impl) SetErrorFunc(f func(e error)) {
 
 func (thiz *Impl) load() (Loader, error) {
 	val := reflect.ValueOf(thiz.config)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = reflect.Indirect(val)
 	}
 	newLoader := reflect.New(val.Type()).Interface().(Loader) //nolint:forcetypeassert
