@@ -55,9 +55,11 @@ func New(filename string, loader Loader, signals ...os.Signal) HotLoader {
 
 func (thiz *Impl) Load() error {
 	temp, err := thiz.load()
-	thiz.mu.Lock()
-	thiz.config = temp
-	thiz.mu.Unlock()
+	if err == nil {
+		thiz.mu.Lock()
+		thiz.config = temp
+		thiz.mu.Unlock()
+	}
 	return err
 }
 
